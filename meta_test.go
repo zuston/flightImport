@@ -2,7 +2,7 @@ package main
 
 import (
 	"testing"
-	"github.com/zuston/flightImport/core"
+	//"github.com/zuston/flightImport/core"
 )
 
 func TestMetaSaver(t *testing.T) {
@@ -14,5 +14,5 @@ func TestMetaSaver(t *testing.T) {
 	mapper["major"] = "test"
 
 	path := "./data/fuck.txt"
-	core.MetadataSaver(path,mapper)
+	//core.MetadataSaver(path,mapper)
 }

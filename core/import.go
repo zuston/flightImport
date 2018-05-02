@@ -28,9 +28,9 @@ const(
 	MAJOR = "major"
 )
 
-const(
+var(
 	mysqlUserName = "root"
-	mysqlPassword = "zuston"
+	mysqlPassword = "shacha"
 )
 
 var dataChan chan string
@@ -40,12 +40,12 @@ func init(){
 	dataChan = make(chan string,100)
 }
 
-func DataSaver(path string, metaMapper map[string]string, sensorNames []string) {
+func DataSaver(path string, metaMapper map[string]string, sensorNames []string,done chan bool) {
 	cf := "basic"
 	var cFamilies = map[string]map[string]string{
 		cf :  nil,
 	}
-	htablename := "pppp"
+	htablename := fmt.Sprintf("%s_%s_%s_%s",metaMapper[MODEL],metaMapper[AIR],metaMapper[MAJOR],metaMapper[SORTIE])
 	// 判断hbase此表是否存在
 	// 建表
 	// 插入数据
@@ -87,6 +87,7 @@ func DataSaver(path string, metaMapper map[string]string, sensorNames []string) 
 
 	case <-endSemp:
 		fmt.Println("finish")
+		done <- true
 		break
 	}
 }
@@ -116,6 +117,7 @@ func MetadataSaver(metaMapper map[string]string, sensorNames []string) {
 	for _,sensorName := range MetaData[1:]{
 		// insert sql
 		insertSql := fmt.Sprintf(`insert into %s.%s (sortie,date,sensor) values("%s","%s","%s");`,databaseName,tableName,sortie,date,sensorName)
+		fmt.Println(insertSql)
 		db.Query(insertSql)
 	}
 }

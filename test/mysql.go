@@ -9,7 +9,7 @@ import (
 //https://blog.csdn.net/jesseyoung/article/details/40398321
 
 func main(){
-	db, err := sql.Open("mysql", "root:zuston@tcp(127.0.0.1:3306)/?charset=utf8")
+	db, err := sql.Open("mysql", "root:shacha@tcp(127.0.0.1:3306)/?charset=utf8")
 	if err!=nil {
 		fmt.Println("connection error")
 		return
