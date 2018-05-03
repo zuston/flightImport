@@ -37,7 +37,8 @@ var dataChan chan string
 var endSemp chan bool
 
 func init(){
-	dataChan = make(chan string,100)
+	dataChan = make(chan string,10000)
+	endSemp = make(chan bool,1)
 }
 
 func DataSaver(path string, metaMapper map[string]string, sensorNames []string,done chan bool) {
@@ -55,7 +56,7 @@ func DataSaver(path string, metaMapper map[string]string, sensorNames []string,d
 	crt := hrpc.NewCreateTable(context.Background(), []byte(htablename), cFamilies)
 
 	if err := adminClient.CreateTable(crt); err != nil {
-		panic(err)
+		fmt.Println(err)
 	}
 
 	pool := grpool.NewPool(100, 100)
@@ -63,32 +64,37 @@ func DataSaver(path string, metaMapper map[string]string, sensorNames []string,d
 	defer pool.Release()
 	go readLine(path)
 
-	select {
-	case v:=<-dataChan:
-		columns := strings.Fields(v)
-		rowkey := metaMapper[DATE]+"_"+columns[0]
-		infoMapper := make(map[string][]byte,10)
-		for i,v := range columns[1:]{
-			sensorName := sensorNames[i+1]
-			infoMapper[sensorName] = []byte(v)
-		}
-		basicInfoCfMapper := map[string]map[string][]byte{cf:infoMapper}
-
-		pool.JobQueue <- func() {
-			biPutRequest, err := hrpc.NewPutStr(context.Background(),htablename,rowkey,basicInfoCfMapper)
-			if err!=nil {
-				return
+	for{
+		select {
+		case v:=<-dataChan:
+			columns := strings.Fields(v)
+			if len(columns)==0 {
+				break
 			}
-			_, err = client.Put(biPutRequest)
-			if err!=nil {
-				return
+			rowkey := metaMapper[DATE]+"_"+columns[0]
+			infoMapper := make(map[string][]byte,10)
+			for i,v := range columns[1:]{
+				sensorName := sensorNames[i+1]
+				infoMapper[sensorName] = []byte(v)
 			}
-		}
+			basicInfoCfMapper := map[string]map[string][]byte{cf:infoMapper}
 
-	case <-endSemp:
-		fmt.Println("finish")
-		done <- true
-		break
+			pool.JobQueue <- func() {
+				biPutRequest, err := hrpc.NewPutStr(context.Background(),htablename,rowkey,basicInfoCfMapper)
+				if err!=nil {
+					return
+				}
+				_, err = client.Put(biPutRequest)
+				if err!=nil {
+					return
+				}
+			}
+
+		case <-endSemp:
+			fmt.Println("[%s] 存储完毕",path)
+			done <- true
+			return
+		}
 	}
 }
 
@@ -117,7 +123,6 @@ func MetadataSaver(metaMapper map[string]string, sensorNames []string) {
 	for _,sensorName := range MetaData[1:]{
 		// insert sql
 		insertSql := fmt.Sprintf(`insert into %s.%s (sortie,date,sensor) values("%s","%s","%s");`,databaseName,tableName,sortie,date,sensorName)
-		fmt.Println(insertSql)
 		db.Query(insertSql)
 	}
 }
@@ -131,9 +136,15 @@ func readLine(path string){
 	defer fi.Close()
 
 	br := bufio.NewReader(fi)
+	titleTag := true
 	for {
 		a, _, c := br.ReadLine()
+		if titleTag {
+			titleTag = false
+			continue
+		}
 		if c == io.EOF {
+			log.Println("[%s] 读取完毕",path)
 			endSemp <- true
 			break
 		}

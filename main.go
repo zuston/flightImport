@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/zuston/flightImport/core"
 	"fmt"
+	"log"
 )
 
 
@@ -20,7 +21,7 @@ func main(){
 	core.DataSaver(path,metaMapper, sensorNames, done)
 
 	<- done
-	fmt.Println("处理完毕..........")
+	log.Println("处理完毕..........")
 }
 
 // 解析文件名
